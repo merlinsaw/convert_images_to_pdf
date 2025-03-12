@@ -59,8 +59,11 @@ set /p "CUSTOM_FILENAME="
 set "PDF_PATH="
 set "OUTPUT_NAME="
 
-REM Get base name from first file for default filename
-for %%f in (%1) do set "BASE_NAME=%%~nf"
+REM Get base name from first file for default filename and replace spaces with underscores
+for %%f in (%1) do (
+    set "BASE_NAME=%%~nf"
+    set "BASE_NAME=!BASE_NAME: =_!"
+)
 
 if not "!CUSTOM_FILENAME!"=="" (
     REM Trim trailing spaces
