@@ -4,6 +4,19 @@ setlocal enabledelayedexpansion
 REM Get the directory where this batch file is located
 set "SCRIPT_DIR=%~dp0"
 
+REM Define output directory - use the parent directory of the script
+for %%I in ("!SCRIPT_DIR:~0,-1!") do set "OUTPUT_DIR=%%~dpI"
+set "OUTPUT_DIR=!OUTPUT_DIR:~0,-1!"
+
+REM Remove any trailing quotes from OUTPUT_DIR
+if "!OUTPUT_DIR:~-1!"=="" set "OUTPUT_DIR=!OUTPUT_DIR:~0,-1!"
+
+REM Create output directory if it doesn't exist (should always exist as it's the parent)
+if not exist "!OUTPUT_DIR!" (
+    mkdir "!OUTPUT_DIR!"
+    echo [INFO] Created output directory: !OUTPUT_DIR!
+)
+
 REM Get current date in YYYY_MM_DD format (no trailing underscore)
 for /f "delims=" %%a in ('powershell -command "Get-Date -Format 'yyyy_MM_dd'"') do set "DATESTAMP=%%a"
 
@@ -106,7 +119,7 @@ if %FILE_COUNT% GTR 1 (
     echo [INFO] Creating a multi-page PDF from %FILE_COUNT% images...
     
     REM Build the command with all image paths
-    set "CMD=python "%SCRIPT_DIR%image_to_pdf_converter.py" --multi"
+    set "CMD=python "!SCRIPT_DIR!image_to_pdf_converter.py" --multi"
     
     REM Add each file to the command in correct order (first selected = first page)
     for %%f in (%*) do (
@@ -114,8 +127,8 @@ if %FILE_COUNT% GTR 1 (
         set "CMD=!CMD! "%%~f""
     )
     
-    REM Add the output directory and filename
-    set "CMD=!CMD! --output-dir "%SCRIPT_DIR:~0,-1%" !FILENAME_OPTION!"
+    REM Add the output directory and filename - ensure proper quoting and separation
+    set "CMD=!CMD! --output-dir "!OUTPUT_DIR!" --output-name "!OUTPUT_NAME!""
     
     echo [INFO] Command to execute: !CMD!
     
@@ -137,13 +150,13 @@ if %FILE_COUNT% GTR 1 (
     )
     
     REM Set the PDF path for later use
-    set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!OUTPUT_NAME!.pdf"
+    set "PDF_PATH=!OUTPUT_DIR!\!OUTPUT_NAME!.pdf"
 ) else (
     color 0b
     echo [INFO] Processing single image: %1
     
     REM Execute the Python script with the date-prefixed filename
-    python "%SCRIPT_DIR%image_to_pdf_converter.py" "%~1" --output-dir "%SCRIPT_DIR:~0,-1%" !FILENAME_OPTION!
+    python "!SCRIPT_DIR!image_to_pdf_converter.py" "%~1" --output-dir "!OUTPUT_DIR!" --output-name "!OUTPUT_NAME!"
     
     if !ERRORLEVEL! NEQ 0 (
         color 0c
@@ -160,7 +173,7 @@ if %FILE_COUNT% GTR 1 (
     )
     
     REM Set the PDF path for later use
-    set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!OUTPUT_NAME!.pdf"
+    set "PDF_PATH=!OUTPUT_DIR!\!OUTPUT_NAME!.pdf"
 )
 
 echo.
