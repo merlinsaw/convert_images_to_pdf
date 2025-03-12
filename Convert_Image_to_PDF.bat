@@ -1,40 +1,22 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Enable virtual terminal processing for ANSI colors
-for /f "tokens=4-5 delims=. " %%i in ('ver') do set VERSION=%%i.%%j
-if "%version%" == "10.0" (
-  reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f >nul 2>&1
-)
-
-REM Define color codes
-set "GREEN=[32m"
-set "BRIGHT_GREEN=[92m"
-set "YELLOW=[33m"
-set "BRIGHT_YELLOW=[93m"
-set "CYAN=[36m"
-set "BRIGHT_CYAN=[96m"
-set "RED=[31m"
-set "BRIGHT_RED=[91m"
-set "MAGENTA=[35m"
-set "BOLD=[1m"
-set "RESET=[0m"
-
-echo %GREEN%%BOLD%=================================%RESET%
-echo %GREEN%%BOLD%     IMAGE TO PDF CONVERTER     %RESET%
-echo %GREEN%%BOLD%=================================%RESET%
-
 REM Get the directory where this batch file is located
 set "SCRIPT_DIR=%~dp0"
-echo %CYAN%Script directory: %BOLD%%SCRIPT_DIR%%RESET%
+
+echo ================================
+echo      IMAGE TO PDF CONVERTER     
+echo ================================
+
+echo Script directory: %SCRIPT_DIR%
 
 REM Check if any files were provided
 if [%1]==[] (
-  echo %RED%%BOLD%[ERROR] No files were provided.%RESET%
+  echo [ERROR] No files were provided.
   echo.
-  echo %YELLOW%Drag and drop image files onto this batch file to convert them to PDF.%RESET%
-  echo %CYAN%- Single image: Creates a single-page PDF%RESET%
-  echo %CYAN%- Multiple images: Creates a multi-page PDF with pages in selection order%RESET%
+  echo Drag and drop image files onto this batch file to convert them to PDF.
+  echo - Single image: Creates a single-page PDF
+  echo - Multiple images: Creates a multi-page PDF with pages in selection order
   pause
   exit /b 1
 )
@@ -42,12 +24,21 @@ if [%1]==[] (
 REM Check if multiple files were provided
 set FILE_COUNT=0
 for %%f in (%*) do set /a FILE_COUNT+=1
-echo %YELLOW%%BOLD%[INFO] Number of files: %FILE_COUNT%%RESET%
+echo [INFO] Number of files: %FILE_COUNT%
+
+REM Create a temporary file to store the list of image files
+set "TEMP_FILE=%TEMP%\image_list_%RANDOM%.txt"
+echo [INFO] Creating temporary file for image list: %TEMP_FILE%
+
+REM Write image paths to the temporary file
+for %%f in (%*) do (
+  echo %%~f>> "%TEMP_FILE%"
+)
 
 REM Prompt user for custom filename
 echo.
-echo %YELLOW%%BOLD%[INPUT] Enter a name for the output PDF file (without extension):%RESET%
-echo %CYAN%Press Enter to use default name%RESET%
+echo [INPUT] Enter a name for the output PDF file (without extension):
+echo Press Enter to use default name
 set /p "CUSTOM_FILENAME="
 
 set "PDF_PATH="
@@ -61,131 +52,119 @@ if not "!CUSTOM_FILENAME!"=="" (
   set "CUSTOM_FILENAME=!CUSTOM_FILENAME: =_!"
   
   set "FILENAME_OPTION=--output-name "!CUSTOM_FILENAME!""
-  echo %GREEN%%BOLD%[INFO] Using custom filename: %CYAN%!CUSTOM_FILENAME!.pdf%RESET%
+  echo [INFO] Using custom filename: !CUSTOM_FILENAME!.pdf
 ) else (
-  echo %YELLOW%%BOLD%[INFO] Using default filename%RESET%
-)
-
-REM Create a temporary file to store the list of image files
-set "TEMP_FILE=%TEMP%\image_list_%RANDOM%.txt"
-echo %CYAN%[INFO] Creating temporary file for image list: %TEMP_FILE%%RESET%
-
-REM Write image paths to the temporary file
-for %%f in (%*) do (
-  echo %%~f>> "%TEMP_FILE%"
+  echo [INFO] Using default filename
 )
 
 if %FILE_COUNT% GTR 1 (
-  echo %GREEN%%BOLD%[INFO] Creating a multi-page PDF from %FILE_COUNT% images...%RESET%
+  echo [INFO] Creating a multi-page PDF from %FILE_COUNT% images...
   
   REM Build the command with all image paths
   set "CMD=python "%SCRIPT_DIR%image_to_pdf_converter.py" --multi"
   
   REM Add each file to the command in correct order (first selected = first page)
   for %%f in (%*) do (
-    echo %CYAN%[PAGE] Adding page: "%%~f"%RESET%
+    echo [PAGE] Adding page: "%%~f"
     set "CMD=!CMD! "%%~f""
   )
   
   REM Add the output directory and custom filename if provided
-  set "CMD=!CMD! --output-dir "%SCRIPT_DIR:~0,-1%" !FILENAME_OPTION! --return-path"
+  set "CMD=!CMD! --output-dir "%SCRIPT_DIR:~0,-1%" !FILENAME_OPTION!"
   
-  echo %MAGENTA%[CMD] Command to execute: !CMD!%RESET%
+  echo [CMD] Command to execute: !CMD!
   
-  REM Execute the command and capture the output path
-  for /f "usebackq delims=" %%p in (`!CMD!`) do (
-    set "PDF_PATH=%%p"
-  )
+  REM Execute the command
+  !CMD!
   
   if !ERRORLEVEL! NEQ 0 (
-    echo %RED%%BOLD%[ERROR] Command failed with error code !ERRORLEVEL!%RESET%
+    echo [ERROR] Command failed with error code !ERRORLEVEL!
     del "%TEMP_FILE%" 2>nul
     pause
     exit /b 1
   )
   
-  REM If no PDF_PATH was captured, determine it based on the first image and custom filename
-  if "!PDF_PATH!"=="" (
-    if defined CUSTOM_FILENAME (
-      set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!CUSTOM_FILENAME!.pdf"
-    ) else (
-      for %%f in (%1) do set "BASE_NAME=%%~nf"
-      set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!BASE_NAME!_multipage.pdf"
-    )
+  REM Determine the PDF path based on the first image and custom filename
+  if defined CUSTOM_FILENAME (
+    set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!CUSTOM_FILENAME!.pdf"
+  ) else (
+    for %%f in (%1) do set "BASE_NAME=%%~nf"
+    set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!BASE_NAME!_multipage.pdf"
   )
 ) else (
   REM Single file mode
-  echo %GREEN%%BOLD%[INFO] Processing single image:%RESET% %CYAN%%1%RESET%
+  echo [INFO] Processing single image: %1
   
-  REM Execute the Python script with return-path to capture the output path
-  for /f "usebackq delims=" %%p in (`python "%SCRIPT_DIR%image_to_pdf_converter.py" "%~1" --output-dir "%SCRIPT_DIR:~0,-1%" !FILENAME_OPTION! --return-path`) do (
-    set "PDF_PATH=%%p"
-  )
+  REM Execute the Python script
+  python "%SCRIPT_DIR%image_to_pdf_converter.py" "%~1" --output-dir "%SCRIPT_DIR:~0,-1%" !FILENAME_OPTION!
   
   if !ERRORLEVEL! NEQ 0 (
-    echo %RED%%BOLD%[ERROR] Command failed with error code !ERRORLEVEL!%RESET%
+    echo [ERROR] Command failed with error code !ERRORLEVEL!
     del "%TEMP_FILE%" 2>nul
     pause
     exit /b 1
   )
   
-  REM If no PDF_PATH was captured, determine it based on the image and custom filename
-  if "!PDF_PATH!"=="" (
-    if defined CUSTOM_FILENAME (
-      set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!CUSTOM_FILENAME!.pdf"
-    ) else (
-      for %%f in (%1) do set "BASE_NAME=%%~nf"
-      set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!BASE_NAME!.pdf"
-    )
+  REM Determine the PDF path based on the image and custom filename
+  if defined CUSTOM_FILENAME (
+    set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!CUSTOM_FILENAME!.pdf"
+  ) else (
+    for %%f in (%1) do set "BASE_NAME=%%~nf"
+    set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!BASE_NAME!.pdf"
   )
 )
 
 echo.
-echo %GREEN%%BOLD%[SUCCESS] All operations completed.%RESET%
-echo %CYAN%%BOLD%[INFO] PDF file is saved at: !PDF_PATH!%RESET%
+echo [SUCCESS] All operations completed.
 
-REM Wait to ensure the PDF is fully written to disk
-echo %YELLOW%[WAIT] Waiting for PDF file to be ready...%RESET%
-timeout /t 3 /nobreak > nul
+REM Clean up temporary file before exit
+del "%TEMP_FILE%" 2>nul
 
-REM Check if the PDF file exists and open it
+REM Check if the PDF file exists and try to open it
 if exist "!PDF_PATH!" (
-  echo %GREEN%[CHECK] PDF file found.%RESET%
+  echo [CHECK] PDF file found at: !PDF_PATH!
+  echo Opening PDF file...
   
-  REM Launch a separate command window to handle PDF opening and deletion prompt
-  REM This ensures the terminal stays open for user interaction
-  start cmd /c "title PDF Viewer && ^
-  echo %BRIGHT_GREEN%Image to PDF Conversion Complete!%RESET% && ^
-  echo %BRIGHT_CYAN%PDF file saved at: !PDF_PATH!%RESET% && ^
-  echo. && ^
-  echo %BRIGHT_GREEN%Opening PDF file...%RESET% && ^
-  start """" "!PDF_PATH!" && ^
-  timeout /t 2 /nobreak > nul && ^
-  echo. && ^
-  echo %BRIGHT_YELLOW%Would you like to delete the original image files? (Y/N)%RESET% && ^
-  choice /c YN /m "Delete original images" && ^
-  if !ERRORLEVEL! EQU 1 ( ^
-    echo %BRIGHT_GREEN%Deleting original image files...%RESET% && ^
-    for /f "usebackq delims=" %%f in ("%TEMP_FILE%") do ( ^
-      echo %BRIGHT_CYAN%Deleting: %%f%RESET% && ^
-      del "%%f" ^
-    ) && ^
-    echo %BRIGHT_GREEN%Original image files have been deleted.%RESET% ^
-  ) else ( ^
-    echo %BRIGHT_YELLOW%Original image files have been kept.%RESET% ^
-  ) && ^
-  del "%TEMP_FILE%" 2>nul && ^
-  echo. && ^
-  echo %BRIGHT_GREEN%Press any key to exit...%RESET% && ^
-  pause > nul"
+  REM Try to open the PDF
+  start "" "!PDF_PATH!"
   
-  echo %BRIGHT_GREEN%PDF viewer window has been opened.%RESET%
-  echo %BRIGHT_YELLOW%Please respond to the prompt in the new window to delete or keep original files.%RESET%
+  REM Wait for the PDF to open
+  timeout /t 4 /nobreak > nul
+  
+  echo.
+  echo Would you like to delete the original image files? (Y/N)
+  echo Please check the PDF before deciding.
+  set /p "DELETE_CHOICE=Your choice (Y/N, default=N): "
+  
+  if /i "!DELETE_CHOICE!"=="Y" (
+    echo.
+    echo Deleting original image files...
+    set "DELETE_ERROR="
+    for %%f in (%*) do (
+      echo Deleting: "%%~f"
+      del "%%~f" 2>nul || set "DELETE_ERROR=1"
+    )
+    if defined DELETE_ERROR (
+      echo Some files could not be deleted. They may be in use.
+    ) else (
+      echo Original image files have been deleted.
+    )
+  ) else (
+    echo.
+    echo Original image files have been kept.
+  )
+  
+  echo.
+  echo Your PDF is ready at: !PDF_PATH!
+  echo.
+  echo Press any key to exit...
+  pause > nul
+  exit /b 0
 ) else (
-  echo %BRIGHT_RED%Warning: PDF file not found at expected location: !PDF_PATH!%RESET%
-  del "%TEMP_FILE%" 2>nul
+  echo.
+  echo Error: Could not create PDF file at expected location: !PDF_PATH!
+  echo.
+  echo Press any key to exit...
+  pause > nul
+  exit /b 1
 )
-
-echo.
-echo %BRIGHT_GREEN%This window will close automatically.%RESET%
-timeout /t 5 /nobreak > nul
