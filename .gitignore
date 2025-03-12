@@ -2,3 +2,5 @@
 *.jpg
 *.pdf
 */
+!convert_images_to_pdf/*
+
