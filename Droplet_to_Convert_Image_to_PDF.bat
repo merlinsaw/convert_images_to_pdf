@@ -19,6 +19,19 @@ color 0b
 
 echo Script directory: %SCRIPT_DIR%
 
+REM Check if Python is installed
+where python >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    color 0c
+    echo [ERROR] Python is not installed or not in PATH.
+    echo.
+    echo Please install Python from https://www.python.org/downloads/
+    echo Make sure to check "Add Python to PATH" during installation.
+    echo.
+    pause
+    exit /b 1
+)
+
 REM Check if any files were provided
 if [%1]==[] (
     REM Set color for errors (Red)
@@ -112,6 +125,12 @@ if %FILE_COUNT% GTR 1 (
     if !ERRORLEVEL! NEQ 0 (
         color 0c
         echo [ERROR] Command failed with error code !ERRORLEVEL!
+        echo.
+        echo If this is a package installation issue, the script has attempted to install
+        echo the required packages. Please try running the script again.
+        echo.
+        echo If the error persists, you may need to manually install the packages:
+        echo python -m pip install Pillow reportlab
         del "%TEMP_FILE%" 2>nul
         pause
         exit /b 1
@@ -129,6 +148,12 @@ if %FILE_COUNT% GTR 1 (
     if !ERRORLEVEL! NEQ 0 (
         color 0c
         echo [ERROR] Command failed with error code !ERRORLEVEL!
+        echo.
+        echo If this is a package installation issue, the script has attempted to install
+        echo the required packages. Please try running the script again.
+        echo.
+        echo If the error persists, you may need to manually install the packages:
+        echo python -m pip install Pillow reportlab
         del "%TEMP_FILE%" 2>nul
         pause
         exit /b 1

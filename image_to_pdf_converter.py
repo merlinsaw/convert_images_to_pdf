@@ -1,16 +1,48 @@
 import os
 import sys
 import argparse
+import subprocess
 
-# Simple check for required packages
+# Function to check and install required packages
+def check_and_install_packages():
+    required_packages = ['Pillow', 'reportlab']
+    missing_packages = []
+    
+    # Check for each package
+    for package in required_packages:
+        try:
+            __import__(package.lower() if package != 'Pillow' else 'PIL')
+        except ImportError:
+            missing_packages.append(package)
+    
+    # If there are missing packages, install them
+    if missing_packages:
+        print(f"Installing missing packages: {', '.join(missing_packages)}")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install"] + missing_packages)
+            print("Package installation completed successfully!")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Error installing packages: {str(e)}")
+            print("Please install the required packages manually using:")
+            print("pip install Pillow reportlab")
+            return False
+    
+    return True
+
+# Check and install packages before importing them
+packages_installed = check_and_install_packages()
+
+# Now try to import the required packages
 try:
     from PIL import Image
     from reportlab.lib.pagesizes import letter
     from reportlab.pdfgen import canvas
 except ImportError:
-    print("Error: Required packages not installed.")
-    print("Please install the required packages using:")
-    print("pip install Pillow reportlab")
+    if packages_installed:
+        print("Error: Failed to import required packages even after installation.")
+        print("Please try installing the packages manually using:")
+        print("pip install Pillow reportlab")
     sys.exit(1)
 
 # ANSI color codes
