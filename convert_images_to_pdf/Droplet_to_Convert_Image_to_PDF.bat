@@ -62,10 +62,6 @@ for %%f in (%*) do (
     echo %%~f>> "%TEMP_FILE%"
 )
 
-REM Get the directory of the first input file (for output location)
-for %%f in (%1) do set "OUTPUT_DIR=%%~dpf"
-echo [INFO] Output directory: !OUTPUT_DIR!
-
 REM User input in yellow
 color 0e
 echo.
@@ -118,8 +114,8 @@ if %FILE_COUNT% GTR 1 (
         set "CMD=!CMD! "%%~f""
     )
     
-    REM Add the output directory and filename - use the directory of the first image
-    set "CMD=!CMD! --output-dir "!OUTPUT_DIR:~0,-1!" !FILENAME_OPTION!"
+    REM Add the output directory and filename
+    set "CMD=!CMD! --output-dir "%SCRIPT_DIR:~0,-1%" !FILENAME_OPTION!"
     
     echo [INFO] Command to execute: !CMD!
     
@@ -141,16 +137,13 @@ if %FILE_COUNT% GTR 1 (
     )
     
     REM Set the PDF path for later use
-    set "PDF_PATH=!OUTPUT_DIR!!OUTPUT_NAME!.pdf"
+    set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!OUTPUT_NAME!.pdf"
 ) else (
     color 0b
     echo [INFO] Processing single image: %1
     
-    REM Get the directory of the input file for output
-    for %%f in (%1) do set "IMG_DIR=%%~dpf"
-    
     REM Execute the Python script with the date-prefixed filename
-    python "%SCRIPT_DIR%image_to_pdf_converter.py" "%~1" --output-dir "!IMG_DIR:~0,-1!" !FILENAME_OPTION!
+    python "%SCRIPT_DIR%image_to_pdf_converter.py" "%~1" --output-dir "%SCRIPT_DIR:~0,-1%" !FILENAME_OPTION!
     
     if !ERRORLEVEL! NEQ 0 (
         color 0c
@@ -167,7 +160,7 @@ if %FILE_COUNT% GTR 1 (
     )
     
     REM Set the PDF path for later use
-    set "PDF_PATH=!IMG_DIR!!OUTPUT_NAME!.pdf"
+    set "PDF_PATH=%SCRIPT_DIR:~0,-1%\!OUTPUT_NAME!.pdf"
 )
 
 echo.
